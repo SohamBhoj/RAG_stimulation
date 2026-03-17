@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Soham's RAG Machine</title>
+<style>
+
+body{
+font-family: Arial, sans-serif;
+background:#0f172a;
+color:white;
+margin:0;
+padding:0;
+}
+
+header{
+padding:20px;
+text-align:center;
+background:#1e293b;
+font-size:24px;
+font-weight:bold;
+}
+
+.container{
+max-width:1100px;
+margin:auto;
+padding:20px;
+}
+
+.card{
+background:#1e293b;
+padding:20px;
+margin-bottom:20px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,.4);
+}
+
+button{
+padding:10px 18px;
+background:#3b82f6;
+border:none;
+border-radius:6px;
+color:white;
+cursor:pointer;
+margin-top:10px;
+}
+
+button:hover{
+background:#2563eb;
+}
+
+textarea{
+width:100%;
+height:120px;
+background:#0f172a;
+color:white;
+border:1px solid #334155;
+border-radius:6px;
+padding:10px;
+}
+
+input{
+width:100%;
+padding:10px;
+border-radius:6px;
+border:1px solid #334155;
+background:#0f172a;
+color:white;
+}
+
+.step{
+margin-bottom:15px;
+padding:10px;
+border-left:4px solid #3b82f6;
+background:#0f172a;
+}
+
+.result{
+background:#020617;
+padding:10px;
+border-radius:6px;
+margin-top:10px;
+}
+
+.highlight{
+color:#60a5fa;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+RAG Simulator — Retrieval Augmented Generation
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2>1. Add Knowledge Base</h2>
+<textarea id="documentInput" placeholder="Paste your document here..."></textarea>
+<button onclick="createChunks()">Create Chunks</button>
+
+<div id="chunks" class="result"></div>
+</div>
+
+
+<div class="card">
+<h2>2. Create Vector Embeddings</h2>
+<button onclick="createEmbeddings()">Convert Chunks to Embeddings</button>
+<div id="embeddings" class="result"></div>
+</div>
+
+
+<div class="card">
+<h2>3. Vector Database</h2>
+<div id="vectordb" class="result"></div>
+</div>
+
+
+<div class="card">
+<h2>4. User Query</h2>
+<input id="queryInput" placeholder="Ask a question..." />
+<button onclick="runQuery()">Run Retrieval</button>
+
+<div id="queryEmbedding" class="result"></div>
+</div>
+
+
+<div class="card">
+<h2>5. Retrieval (Top Similar Chunks)</h2>
+<div id="retrieval" class="result"></div>
+</div>
+
+
+<div class="card">
+<h2>6. Prompt Building</h2>
+<div id="prompt" class="result"></div>
+</div>
+
+
+<div class="card">
+<h2>7. Final Answer (Simulated LLM)</h2>
+<div id="answer" class="result"></div>
+</div>
+
+</div>
+
+
+<script>
+
+let chunks=[]
+let embeddings=[]
+let vectorDB=[]
+
+function createChunks(){
+
+let text=document.getElementById("documentInput").value
+
+chunks=text.split(".").map(c=>c.trim()).filter(c=>c.length>0)
+
+let html=""
+
+chunks.forEach((c,i)=>{
+html+=`<div class='step'>Chunk ${i+1}: ${c}</div>`
+})
+
+document.getElementById("chunks").innerHTML=html
+
+}
+
+
+function textToVector(text){
+
+let words=text.toLowerCase().split(/\W+/)
+
+let vector={}
+
+words.forEach(w=>{
+if(!vector[w]) vector[w]=0
+vector[w]++
+})
+
+return vector
+}
+
+
+function createEmbeddings(){
+
+embeddings=chunks.map(c=>textToVector(c))
+
+vectorDB=chunks.map((c,i)=>({
+text:c,
+vector:embeddings[i]
+}))
+
+let html=""
+
+vectorDB.forEach((v,i)=>{
+html+=`<div class='step'>
+Chunk ${i+1}<br>
+<span class="highlight">Vector:</span>
+${JSON.stringify(v.vector)}
+</div>`
+})
+
+document.getElementById("embeddings").innerHTML=html
+document.getElementById("vectordb").innerHTML="Vector DB now contains "+vectorDB.length+" vectors."
+
+}
+
+
+function similarity(a,b){
+
+let score=0
+
+for(let key in a){
+
+if(b[key]){
+score+=a[key]*b[key]
+}
+
+}
+
+return score
+
+}
+
+
+function runQuery(){
+
+let query=document.getElementById("queryInput").value
+
+let queryVector=textToVector(query)
+
+document.getElementById("queryEmbedding").innerHTML=
+"Query Vector: "+JSON.stringify(queryVector)
+
+let scores=vectorDB.map(v=>({
+text:v.text,
+score:similarity(queryVector,v.vector)
+}))
+
+scores.sort((a,b)=>b.score-a.score)
+
+let top=scores.slice(0,2)
+
+let retrievalHTML=""
+
+top.forEach(r=>{
+retrievalHTML+=`<div class='step'>
+Score: ${r.score}<br>
+${r.text}
+</div>`
+})
+
+document.getElementById("retrieval").innerHTML=retrievalHTML
+
+let context=top.map(t=>t.text).join("\n")
+
+let prompt=`
+Answer the question based on the context.
+
+Context:
+${context}
+
+Question:
+${query}
+`
+
+document.getElementById("prompt").innerText=prompt
+
+document.getElementById("answer").innerHTML=
+"Simulated LLM Answer:<br><br>"+context
+
+}
+
+</script>
+
+</body>
+</html>
